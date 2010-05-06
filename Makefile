@@ -16,10 +16,8 @@ GEN_DATA_SRCS      = gendata.c
 GEN_DATA_OBJS      = $(patsubst %.c,%.o,$(GEN_DATA_SRCS))
 
 PERF_EXEC_NAME     = perf
-PERF_SRCS          = heapSort.c \
-                     heapSortLibc.c \
+PERF_SRCS          = heapSortLibc.c \
                      mergeSortLibc.c \
-                     myHeap.c \
                      quickSort.c \
                      sortperf.c \
                      timSort.c
