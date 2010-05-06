@@ -3,13 +3,45 @@
 #include <sys/time.h>
 #include <math.h>
 
-#include "heapSort.h"
 #include "heapSortLibc.h"
 
 #include "timSort.h"
 #include "quickSort.h"
 #include "mergeSortLibc.h"
 
+/*
+ * -----------------------------------------------------------------------------
+ *  Configure Structure
+ * -----------------------------------------------------------------------------
+ */
+typedef struct perfContext
+{
+    int32_t      mDoVerify;
+    char        *mFileName;
+
+    int32_t      mCount;            /* read from input file */
+
+    uint32_t    *mArrayToSort;      /* array to sort */
+    uint32_t    *mOriginalArray;    /* original array */
+
+    void       (*mSortFunc)(MY_TYPE [], uint32_t, myCmpFunc *);
+} perfContext;
+
+static void perfContextInit(perfContext *aContext)
+{
+    aContext->mDoVerify      = -1;
+    aContext->mFileName      = NULL;
+    aContext->mCount         = -1;
+
+    aContext->mArrayToSort   = NULL;
+    aContext->mOriginalArray = NULL;
+}
+
+/*
+ * -----------------------------------------------------------------------------
+ *  Verifying Sorted Array
+ * -----------------------------------------------------------------------------
+ */
 static int32_t verifyArrayIsSorted(uint32_t *aArray, int32_t aCount)
 {
     int32_t i;
@@ -22,6 +54,11 @@ static int32_t verifyArrayIsSorted(uint32_t *aArray, int32_t aCount)
     return 0;
 }
 
+/*
+ * -----------------------------------------------------------------------------
+ *  Compare function to deliver to sorting functions
+ * -----------------------------------------------------------------------------
+ */
 static myCmpRc compareFunc(MY_TYPE aElem1, MY_TYPE aElem2)
 {
     if (aElem1 > aElem2)
@@ -38,258 +75,238 @@ static myCmpRc compareFunc(MY_TYPE aElem1, MY_TYPE aElem2)
     }
 }
 
-static uint32_t *createArray(uint32_t aSize)
+/*
+ * -----------------------------------------------------------------------------
+ *  Allocating And Filling Array
+ * -----------------------------------------------------------------------------
+ */
+static int32_t getCountFromFile(FILE *aFileHandle)
 {
-    uint32_t  sCursor = 0;
-    uint32_t *sArray  = (uint32_t *)malloc(aSize * sizeof(uint32_t));
+    int32_t  sCount = 0;
+    char     sFirstLine[1024] = {0,};
 
-    if (sArray == NULL) abort();
-
-    while (sCursor < aSize)
+    if (fgets(sFirstLine, sizeof(sFirstLine), aFileHandle) == NULL)
     {
-        sArray[sCursor] = generateValue();
-        sCursor++;
+        if (ferror(aFileHandle) != 0)
+        {
+            /* error */
+            (void)fprintf(stderr, "error : reading file.\n");
+            clearerr(aFileHandle);
+            exit(1);
+        }
+        else
+        {
+            if (feof(aFileHandle) != 0)
+            {
+                /* eof */
+                (void)fprintf(stderr, "%s\n", sFirstLine);
+                (void)fprintf(stderr, "eof\n");
+                exit(1);
+            }
+            else
+            {
+                abort();
+            }
+        }
     }
 
-    return sArray;
+    if (sFirstLine[0] != '#')
+    {
+        (void)fprintf(stderr, "error : invalid file format.\n");
+        exit(1);
+    }
+    else
+    {
+        char    *sEndPtr = NULL;
+
+        sCount = strtol(sFirstLine + 1, &sEndPtr, 10);
+
+        if (errno == ERANGE)
+        {
+            (void)fprintf(stderr, "error : the count is out of range.\n");
+            exit(1);
+        }
+        else
+        {
+            if (*sEndPtr != '\n')
+            {
+                (void)fprintf(stderr, "error : invalid file format.\n");
+                (void)fprintf(stderr, "endptr : %c\n", *sEndPtr);
+                exit(1);
+            }
+            else
+            {
+            }
+        }
+    }
+
+    return sCount;
 }
 
-typedef struct testConf
+static void createArray(perfContext *aContext)
 {
-    int32_t      mCount;
-    int32_t      mDoVerify;
+    /*
+     * Note : It is ubsurd to allocate a linear memory of such a big size.
+     *        Operating system might swap out the memory if the system has not enough memory,
+     *        and it might undermine the credibility of this performance test.
+     */
+    aContext->mOriginalArray = malloc(aContext->mCount);
 
-    myPattern    mPattern;
+    if (aContext->mOriginalArray == NULL)
+    {
+        (void)fprintf(stderr, "error : malloc fail\n");
+        exit(0);
+    }
+    else
+    {
+    }
 
-    const char  *mAlgorithmName;
-    void       (*mSortFunc)(MY_TYPE [], uint32_t, myCmpFunc *);
-} testConf;
+    /*
+     * Note : It is ubsurd to allocate a linear memory of such a big size.
+     *        Operating system might swap out the memory if the system has not enough memory.
+     *        and it might undermine the credibility of this performance test.
+     */
+    aContext->mArrayToSort = malloc(aContext->mCount);
 
-static void testConfInit(testConf *aConf)
-{
-    aConf->mCount         = -1;
-    aConf->mDoVerify      = -1;
-    aConf->mAlgorithmName = NULL;
-    aConf->mSortFunc      = NULL;
+    if (aContext->mOriginalArray == NULL)
+    {
+        (void)fprintf(stderr, "error : malloc fail\n");
+        exit(0);
+    }
+    else
+    {
+    }
 }
 
+static void destroyArray(uint32_t *sArray)
+{
+    free(sArray);
+}
+
+static void fillArray(FILE *aFileHandle, perfContext *aContext)
+{
+    int32_t  i;
+    uint32_t sNumber;
+
+    for (i = 0; i < aContext->mCount; i++)
+    {
+        if (fscanf(aFileHandle, "%u\n", &sNumber) == EOF)
+        {
+            (void)fprintf(stderr, "error : value count does not match\n");
+            exit(1);
+        }
+        else
+        {
+        }
+
+        aContext->mOriginalArray[i] = sNumber;
+    }
+}
+
+static void createAndFillArray(perfContext *aContext)
+{
+    FILE *sFileHandle      = NULL;
+
+    sFileHandle = fopen(aContext->mFileName, "r");
+
+    if (sFileHandle == NULL)
+    {
+        if (errno == ENOENT)
+        {
+            (void)fprintf(stderr, "File not found.\n");
+            exit(1);
+        }
+        else
+        {
+            (void)fprintf(stderr, "Unexpected error. %s (errno %d)\n", strerror(errno), errno);
+            exit(1);
+        }
+    }
+    else
+    {
+    }
+
+    aContext->mCount = getCountFromFile(sFileHandle);
+
+    createArray(aContext);
+
+    fillArray(sFileHandle, aContext);
+
+    exit(0);
+}
+
+/*
+ * -----------------------------------------------------------------------------
+ *  Processing Command Line Arguments
+ * -----------------------------------------------------------------------------
+ */
 static void printUsageAndExit(char *aProgramName)
 {
-    (void)fprintf(stderr, "Usage : %s [ options ]\n"
-                          "  -c NUM   element count\n"
-                          "  -v       verify sorting result\n"
-                          "  -a NAME  sorting algorithm name to use\n"
-                          "           NAME would be one of "
-                          "tim, heap, heaplibc, quick, mergelibc.\n"
-                          , aProgramName);
+    (void)fprintf(stderr, "Usage : %s [ -v ] <input_file_name>\n"
+                          "    if -v is specified, the program verifies sorted array.\n", 
+                          aProgramName);
     exit(1);
 }
 
-void processArg(int32_t aArgc, char *aArgv[], testConf *aConf)
+static void processArg(int32_t aArgc, char *aArgv[], perfContext *aContext)
 {
-    int32_t i;
-
-    for (i = 1; i < aArgc; i++)
+    if (aArgc == 3)
     {
-        if (strcmp(aArgv[i], "-v") == 0)
+        /*
+         * There is an option specified.
+         */
+        if (strcmp(aArgv[1], "-v") == 0)
         {
-            /* -v */
-            if (aConf->mDoVerify < 0)
-            {
-                aConf->mDoVerify = 1;
-            }
-            else
-            {
-                (void)fprintf(stderr, "error : an option cannot be specified more than once.\n");
-                exit(1);
-            }
-        }
-        else if (strcmp(aArgv[i], "-c") == 0)
-        {
-            /* -c */
-            if (aConf->mCount < 0)
-            {
-                if (i + 1 < aArgc)
-                {
-                    int32_t  sCount;
-                    char    *sEndPtr = NULL;
-                    sCount = strtol(aArgv[i + 1], &sEndPtr, 10);
-                    if (errno == ERANGE)
-                    {
-                        (void)fprintf(stderr, "error : the value provided with "
-                                              "'%s' is out of range.\n", aArgv[i]);
-                    }
-                    else
-                    {
-                        if (*sEndPtr != '\0')
-                        {
-                            (void)fprintf(stderr, "error : option '%s' only accepts integer.\n", aArgv[i]);
-                            exit(1);
-                        }
-                    }
-
-                    aConf->mCount = sCount;
-                    i++;
-                }
-                else
-                {
-                    (void)fprintf(stderr, "error : option '%s' needs to be "
-                                          "provided with a value.\n", aArgv[i]);
-                    exit(1);
-                }
-            }
-            else
-            {
-                (void)fprintf(stderr, "error : an option cannot be specified more than once.\n");
-                exit(1);
-            }
-        }
-        else if (strcmp(aArgv[i], "-a") == 0)
-        {
-            /* -a */
-            if (aConf->mSortFunc == NULL)
-            {
-                if (i + 1 < aArgc)
-                {
-                    i++;
-
-                    if (strcmp(aArgv[i], "tim") == 0)
-                    {
-                        aConf->mSortFunc      = timSort;
-                        aConf->mAlgorithmName = "timsort";
-                    }
-                    else if (strcmp(aArgv[i], "heap") == 0)
-                    {
-                        aConf->mSortFunc      = heapSort;
-                        aConf->mAlgorithmName = "heapsort";
-                    }
-                    else if (strcmp(aArgv[i], "quick") == 0)
-                    {
-                        aConf->mSortFunc      = quickSort;
-                        aConf->mAlgorithmName = "quicksort";
-                    }
-                    else if (strcmp(aArgv[i], "mergelibc") == 0)
-                    {
-                        aConf->mSortFunc      = mergeSortLibc;
-                        aConf->mAlgorithmName = "mergesort of libc";
-                    }
-                    else if (strcmp(aArgv[i], "heaplibc") == 0)
-                    {
-                        aConf->mSortFunc      = heapSortLibc;
-                        aConf->mAlgorithmName = "heapsort of libc";
-                    }
-                    else
-                    {
-                        (void)fprintf(stderr, 
-                                      "error : %s is not a supported sorting algorithm name.\n"
-                                      "        available sorting algorithm name : "
-                                      "tim, heap, heaplibc quick, mergelibc\n",
-                                      aArgv[i]);
-                        exit(1);
-                    }
-                }
-                else
-                {
-                    (void)fprintf(stderr, 
-                                  "error : option '%s' needs to be "
-                                  "provided with a sorting algorithm name.\n", aArgv[i]);
-                    (void)fprintf(stderr,
-                                  "        available sorting algorithm name : "
-                                  "tim, heap, heaplibc, quick, mergelibc\n");
-                    exit(1);
-                }
-            }
-            else
-            {
-                (void)fprintf(stderr, "error : an option cannot be specified more than once.\n");
-                exit(1);
-            }
-        }
-        else if (strcmp(aArgv[i], "-p") == 0)
-        {
-            if (aConf->mSourceDataPattern == PATTERN_NONE)
-            {
-                if (i + 1 < aArgc)
-                {
-                    i++;
-
-                    if (strcmp(aArgv[i], "random") == 0)
-                    {
-                        aConf->mSourceDataPattern = PATTERN_RANDOM;
-                    }
-                    else (strcmp(aArgv[i], "sinwave") == 0)
-                    {
-                        aConf->mSourceDataPattern = PATTERN_SINWAVE;
-                    }
-                    else
-                    {
-                    }
-                }
-                else
-                {
-                    (void)fprintf(stderr, 
-                                  "error : option '%s' needs to be "
-                                  "provided with a source data pattern.\n", aArgv[i]);
-                    (void)fprintf(stderr,
-                                  "        available source data patterns are : "
-                                  "random, ascending, descending, saw");
-                    exit(1);
-                }
-            }
-            else
-            {
-                (void)fprintf(stderr, "error : an option cannot be specified more than once.\n");
-                exit(1);
-            }
+            aContext->mDoVerify = 1;
         }
         else
         {
             printUsageAndExit(aArgv[0]);
         }
+
+        aContext->mFileName = aArgv[2];
+    }
+    else if (aArgc == 2)
+    {
+        /*
+         * No option specified
+         */
+        aContext->mFileName = aArgv[1];
+    }
+    else
+    {
+        /*
+         * Invalid number of arguments.
+         */
+        printUsageAndExit(aArgv[0]);
     }
 
-    if (aConf->mDoVerify < 0) aConf->mDoVerify = 0; /* do not verify unless -v is provided */
-    if (aConf->mCount < 0) aConf->mCount = MY_DEFAULT_ELEMENT_CNT;
-    if (aConf->mSortFunc == NULL)
-    {
-        (void)fprintf(stderr, "error : you must specify algorithm to use. \n");
-        exit(1);
-    }
+    if (aContext->mDoVerify < 0) aContext->mDoVerify = 0; /* do not verify unless -v is provided */
 }
 
-static void dumpArray(uint32_t *aArray, int32_t aCount)
-{
-    uint32_t i;
-
-    for (i = 0; i < aCount; i++)
-    {
-        (void)printf("%u\n", aArray[i]);
-    }
-}
-
+/*
+ * -----------------------------------------------------------------------------
+ *  Main
+ * -----------------------------------------------------------------------------
+ */
 int32_t main(int32_t aArgc, char *aArgv[])
 {
-    testConf        sConf;
+    perfContext     sContext;
 
     struct timeval  sStart, sEnd;
     int32_t         sSeconds, sUseconds;
 
     uint32_t       *sArray;
 
-    testConfInit(&sConf);
-    processArg(aArgc, aArgv, &sConf);
+    perfContextInit(&sContext);
 
-    sArray = createArraySinWave2(sConf.mCount, 10);
-#if 0
-    sArray = createArrayRandom(sConf.mCount);
-#endif
+    processArg(aArgc, aArgv, &sContext);
 
-    dumpArray(sArray, sConf.mCount);
+    createAndFillArray(&sContext);
 
-    (void)fprintf(stderr, "Starting sorting %d integers with %s.....\n", sConf.mCount, sConf.mAlgorithmName);
     (void)gettimeofday(&sStart, NULL);
 
-    (*sConf.mSortFunc)((MY_TYPE *)sArray, sConf.mCount, compareFunc);
+    (*sContext.mSortFunc)((MY_TYPE *)sArray, sContext.mCount, compareFunc);
 
     (void)gettimeofday(&sEnd, NULL);
     (void)fprintf(stderr, "Completed sorting...\n");
@@ -304,13 +321,13 @@ int32_t main(int32_t aArgc, char *aArgv[])
     }
 
     (void)fprintf(stderr, "\nIt took %d.%06d seconds to sort %d integers.\n\n",
-                  sSeconds, sUseconds, sConf.mCount);
+                  sSeconds, sUseconds, sContext.mCount);
 
-    if (sConf.mDoVerify == 1)
+    if (sContext.mDoVerify == 1)
     {
         (void)fprintf(stderr, "Checking if resulting array is correctly sorted...... ");
 
-        if (verifyArrayIsSorted(sArray, sConf.mCount) == 0)
+        if (verifyArrayIsSorted(sArray, sContext.mCount) == 0)
         {
             (void)fprintf(stderr, "OK\n");
         }

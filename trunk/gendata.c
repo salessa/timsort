@@ -72,6 +72,7 @@ static void genDataGenerateSinWave1(uint32_t aSampleCnt, uint32_t aCycleCount)
  *  Sine wave type 2
  * -----------------------------------------------------------------------------
  */
+#if 0
 static void genDataGenerateSinWave2(uint32_t aSampleCnt, uint32_t aCycleCount)
 {
     uint32_t  i;
@@ -92,6 +93,7 @@ static void genDataGenerateSinWave2(uint32_t aSampleCnt, uint32_t aCycleCount)
         (void)fprintf(stdout, "%u\n", (uint32_t)sValue);
     }
 }
+#endif
 
 /*
  * -----------------------------------------------------------------------------
@@ -256,8 +258,10 @@ int32_t main(int32_t aArgc, char *aArgv[])
     genDataConfInit(&sConf);
     processArg(aArgc, aArgv, &sConf);
 
-    (void)fprintf(stdout, "# Sample count : %d\n", sConf.mCount);
-    (void)fprintf(stdout, "# Pattern : %s\n", gPatternName[sConf.mPattern]);
+    /*
+     * Printing count
+     */
+    (void)fprintf(stdout, "#%d\n", sConf.mCount);
 
     switch (sConf.mPattern)
     {
