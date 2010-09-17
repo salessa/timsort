@@ -1063,7 +1063,7 @@ static void timMergeAt(timMergeState *aState, uint32_t aWhere, myCmpFunc *aCmpCb
     /*
      * Merge remaining runs, using tmp array with min(sLenA, sLenB) elements
      *
-     * At this point, following invariant holds:
+     * At this point, following invariant holds for the range from sBaseA to sBaseB + sLenB.
      *
      *      Array[sBaseA + sLenA] is the element with biggest value.
      *      Array[sBaseB]         is the element with smallest value.
@@ -1073,9 +1073,9 @@ static void timMergeAt(timMergeState *aState, uint32_t aWhere, myCmpFunc *aCmpCb
      *      +---------------------------+---------------------------+
      *      |   |   |   |   |   |   |MAX|MIN|   |   |   |   |   |   |
      *      +---------------------------+---------------------------+
-     *                ^                   ^
-     *                |<----- sLenA ----->|
-     *              sBaseA              sBaseB
+     *              ^                   ^               ^
+     *              |<----- sLenA ----->|<--- sLenB --->|
+     *            sBaseA              sBaseB         sBaseB + sLenB
      */
     if (sLenA <= sLenB)
     {
