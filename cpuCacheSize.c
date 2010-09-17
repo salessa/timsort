@@ -1,5 +1,4 @@
-#include <stdio.h>
-#include <stdint.h>
+#include "cpuCacheSize.h"
 
 uint32_t getCpuCacheSize(void)
 {
@@ -30,10 +29,10 @@ uint32_t getCpuCacheSize(void)
         : "a"(eax)
         : "%edi");  /* Tell gcc that EDI has been changed inside asm block. */
 
-    // (void)printf("ecx = 0x%08x\n", ecx);
-
     /*
-     * cpuid instuction (IA32 Software Developer's Manual Vol.2A p.3-205 ~ p.3-206)
+     * cpuid instuction 
+     * (IA32 Software Developer's Manual Vol.2A p.3-205 ~ p.3-206)
+     *
      * Opcode : EAX
      * If EAX is 0x80000006 when cpuid is called, 
      * EAX, EBX, EDX is reserved, and information is returned in ECX
@@ -56,16 +55,18 @@ uint32_t getCpuCacheSize(void)
     sCacheSizeInK    = ecx >> 16;
     sL2Associativity = (ecx >> 12) & 0x0F;
 
-    // (void)printf("L2 cache line size = %hhuBytes (0x%02x)\n", sCacheLineSize, sCacheLineSize);
-    // (void)printf("L2 cache size = %huKBytes (0x%04x)\n", sCacheSizeInK, sCacheSizeInK);
-    // (void)printf("L2 Associativity = 0x%02x\n", sL2Associativity);
+#if 0
+    (void)printf("ecx = 0x%08x\n", ecx);
+
+    (void)printf("L2 cache line size = %hhuBytes (0x%02x)\n",
+                 sCacheLineSize,
+                 sCacheLineSize);
+    (void)printf("L2 cache size = %huKBytes (0x%04x)\n",
+                 sCacheSizeInK,
+                 sCacheSizeInK);
+    (void)printf("L2 Associativity = 0x%02x\n",
+                 sL2Associativity);
+#endif
 
     return sCacheSizeInK;
-}
-
-int32_t main(void)
-{
-    (void)printf("L2 cache size = %huKBytes\n", getCpuCacheSize());
-
-    return 0;
 }
