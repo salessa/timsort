@@ -41,7 +41,7 @@ typedef enum
     GEN_DATA_PATTERN_SINWAVE1,
     GEN_DATA_PATTERN_CHAINSAW,
     GEN_DATA_PATTERN_IDENTICAL,
-    GEN_DATA_PATTERN_ALMOST,
+    /* GEN_DATA_PATTERN_ALMOST, */
     GEN_DATA_PATTERN_MAX,
 } genDataPattern;
 
@@ -62,6 +62,11 @@ static void genDataConfInit(genDataConf *aConf)
  *  Already Sorted Array
  * -----------------------------------------------------------------------------
  */
+static int genCmpInt(const void *a, const void *b)
+{
+    return (*(uint32_t *)a - *(uint32_t *)b);
+}
+
 static void genDataMakeSortedArray(uint32_t *aArray, uint32_t aSize)
 {
     uint32_t i;
@@ -77,16 +82,11 @@ static void genDataMakeSortedArray(uint32_t *aArray, uint32_t aSize)
     qsort(aArray, aSize, sizeof(uint32_t), genCmpInt);
 }
 
-static int genCmpInt(const void *a, const void *b)
-{
-    return (*(uint32_t *)a - *(uint32_t *)b);
-}
-
 static void genDataGenerateSorted(uint32_t aSampleCnt, genDataOrder aOrder)
 {
     uint32_t  i;
-    uint32_t  sStart;
-    int32_t   sDelta;
+    uint32_t  sStart = 0;
+    int32_t   sDelta = 0;
     uint32_t  sIndex;
 
     uint32_t *sArray = NULL;
@@ -98,11 +98,11 @@ static void genDataGenerateSorted(uint32_t aSampleCnt, genDataOrder aOrder)
 
     switch (aOrder)
     {
-        case GEN_DATA_ORDER_DESCENDING:
+        case GEN_DATA_ORDER_ASCENDING:
             sStart = 0;
             sDelta = 1;
             break;
-        case GEN_DATA_ORDER_ASCENDING:
+        case GEN_DATA_ORDER_DESCENDING:
             sStart = aSampleCnt - 1;
             sDelta = -1;
             break;
@@ -124,6 +124,7 @@ static void genDataGenerateSorted(uint32_t aSampleCnt, genDataOrder aOrder)
  *  Almost Sorted Array with 0.1 * N permutations
  * -----------------------------------------------------------------------------
  */
+#if 0
 static void genDataGenerateAlmostSorted(uint32_t aSampleCnt)
 {
     uint32_t *sArray = NULL;
@@ -135,6 +136,7 @@ static void genDataGenerateAlmostSorted(uint32_t aSampleCnt)
 
     free(sArray);
 }
+#endif
 
 /*
  * -----------------------------------------------------------------------------
@@ -281,6 +283,11 @@ static void processArg(int32_t aArgc, char *aArgv[], genDataConf *aConf)
 {
     int32_t i;
 
+    if (aArgc == 1)
+    {
+        genDataPrintUsageAndExit(aArgv[0]);
+    }
+
     for (i = 1; i < aArgc; i++)
     {
         if (strcmp(aArgv[i], "-c") == 0)
@@ -314,7 +321,7 @@ static void processArg(int32_t aArgc, char *aArgv[], genDataConf *aConf)
                 {
                     (void)fprintf(stderr, "error : option '%s' needs to be "
                                           "provided with a value.\n", aArgv[i]);
-                    exit(1);
+                    genDataPrintUsageAndExit(aArgv[0]);
                 }
             }
             else
@@ -350,10 +357,7 @@ static void processArg(int32_t aArgc, char *aArgv[], genDataConf *aConf)
                     (void)fprintf(stderr, 
                                   "error : option '%s' needs to be "
                                   "provided with a source data pattern.\n", aArgv[i]);
-                    (void)fprintf(stderr,
-                                  "        available source data patterns are : "
-                                  "random, ascending, descending, saw");
-                    exit(1);
+                    genDataPrintUsageAndExit(aArgv[0]);
                 }
             }
             else
