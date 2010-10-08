@@ -231,8 +231,6 @@ static void createAndFillArray(perfContext *aContext)
     createArray(aContext);
 
     fillArray(sFileHandle, aContext);
-
-    exit(0);
 }
 
 /*
@@ -242,15 +240,46 @@ static void createAndFillArray(perfContext *aContext)
  */
 static void printUsageAndExit(char *aProgramName)
 {
-    (void)fprintf(stderr, "Usage : %s [ -v ] <input_file_name>\n"
-                          "    if -v is specified, the program verifies sorted array.\n", 
+    (void)fprintf(stderr, "Usage : %s [ -v ] <sorting_algorithm> <input_file_name>\n"
+                          "    If -v is specified, the program verifies sorted array.\n"
+                          "    Available sorting algorithms :\n"
+                          "        quick\n"
+                          "        merge\n"
+                          "        heap\n"
+                          "        tim\n",
                           aProgramName);
     exit(1);
 }
 
+static void processArgDetermineSortFunc(char        *aProgramName,
+                                        char        *aAlgorithmName,
+                                        perfContext *aContext)
+{
+    if (strcmp(aAlgorithmName, "quick") == 0)
+    {
+        aContext->mSortFunc = quickSortLibc;
+    }
+    else if (strcmp(aAlgorithmName, "merge") == 0)
+    {
+        aContext->mSortFunc = mergeSortLibc;
+    }
+    else if (strcmp(aAlgorithmName, "heap") == 0)
+    {
+        aContext->mSortFunc = heapSortLibc;
+    }
+    else if (strcmp(aAlgorithmName, "tim") == 0)
+    {
+        aContext->mSortFunc = timSort;
+    }
+    else
+    {
+        printUsageAndExit(aProgramName);
+    }
+}
+
 static void processArg(int32_t aArgc, char *aArgv[], perfContext *aContext)
 {
-    if (aArgc == 3)
+    if (aArgc == 4)
     {
         /*
          * There is an option specified.
@@ -264,14 +293,16 @@ static void processArg(int32_t aArgc, char *aArgv[], perfContext *aContext)
             printUsageAndExit(aArgv[0]);
         }
 
-        aContext->mFileName = aArgv[2];
+        processArgDetermineSortFunc(aArgv[0], aArgv[2], aContext);
+        aContext->mFileName = aArgv[3];
     }
-    else if (aArgc == 2)
+    else if (aArgc == 3)
     {
         /*
          * No option specified
          */
-        aContext->mFileName = aArgv[1];
+        processArgDetermineSortFunc(aArgv[0], aArgv[1], aContext);
+        aContext->mFileName = aArgv[2];
     }
     else
     {
@@ -304,6 +335,7 @@ int32_t main(int32_t aArgc, char *aArgv[])
 
     createAndFillArray(&sContext);
 
+    (void)fprintf(stderr, "Start sorting...\n");
     (void)gettimeofday(&sStart, NULL);
 
     (*sContext.mSortFunc)((MY_TYPE *)sArray, sContext.mCount, compareFunc);
@@ -320,7 +352,7 @@ int32_t main(int32_t aArgc, char *aArgv[])
         sUseconds += 1000000;
     }
 
-    (void)fprintf(stderr, "\nIt took %d.%06d seconds to sort %d integers.\n\n",
+    (void)fprintf(stderr, "\nIt took %d.%06d seconds to sort %d elements.\n\n",
                   sSeconds, sUseconds, sContext.mCount);
 
     if (sContext.mDoVerify == 1)

@@ -7,8 +7,6 @@
 #include <stdint.h>
 #include <assert.h>
 
-#define MY_DEFAULT_ELEMENT_CNT  10000000   /* default element count : 10,000,000 */
-
 /*
  * -----------------------------------------------------------------------------
  *  Configure
@@ -403,6 +401,9 @@ int32_t main(int32_t aArgc, char *aArgv[])
      */
     (void)fprintf(stdout, "#%d\n", sConf.mCount);
 
+    /*
+     * Printing data
+     */
     switch (sConf.mPattern)
     {
         case GEN_DATA_PATTERN_RANDOM:
