@@ -1,5 +1,5 @@
-#ifndef __LIBC_HEAP_SORT_H__
-#define __LIBC_HEAP_SORT_H__
+#ifndef __HEAP_SORT_LIBC_H__
+#define __HEAP_SORT_LIBC_H__
 
 #include <stdint.h>
 #include <stdlib.h>
