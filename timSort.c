@@ -21,6 +21,7 @@ typedef struct timSlice
 
 typedef struct timMergeState
 {
+    size_t     mWidth;  /* sizeof an element */
     MY_TYPE   *mArray;  /* pointer to source array */
 
     /*
@@ -43,8 +44,9 @@ typedef struct timMergeState
 
 } timMergeState;
 
-static void timMergeStateInit(timMergeState *aState, MY_TYPE *aArray)
+static void timMergeStateInit(timMergeState *aState, MY_TYPE *aArray, size_t aWidth)
 {
+    aState->mWidth         = aWidth;
     aState->mArray         = aArray;
     aState->mMergeMem      = aState->mMergeArray;
     aState->mMergeMemSize  = TIM_MERGE_TEMP_ARRAY_SIZE;
@@ -117,7 +119,7 @@ static uint32_t timCountRunAndMakeAscending(MY_TYPE   *aArray,
      * and determine if it is assencing or descending.
      * And then start checking how long respective patterns go.
      */
-    if ((*aCmpCb)(aArray[aIndexLow], aArray[aIndexLow + 1]) == MY_LESS)
+    if ((*aCmpCb)(aArray[aIndexLow], aArray[aIndexLow + 1]) == -1)
     {
         /*
          * The first two elements are in ASCENDING order
@@ -130,7 +132,7 @@ static uint32_t timCountRunAndMakeAscending(MY_TYPE   *aArray,
 
         while (sIndexCur < aIndexHigh)
         {
-            if ((*aCmpCb)(aArray[sIndexCur - 1], aArray[sIndexCur]) != MY_GREATER)
+            if ((*aCmpCb)(aArray[sIndexCur - 1], aArray[sIndexCur]) != 1)
             {
                 /* <= */
                 sIndexCur++;
@@ -157,7 +159,7 @@ static uint32_t timCountRunAndMakeAscending(MY_TYPE   *aArray,
 
         while (sIndexCur < aIndexHigh)
         {
-            if ((*aCmpCb)(aArray[sIndexCur - 1], aArray[sIndexCur]) == MY_GREATER)
+            if ((*aCmpCb)(aArray[sIndexCur - 1], aArray[sIndexCur]) == 1)
             {
                 /* > */
                 sIndexCur++;
@@ -210,7 +212,7 @@ static void timDoBinarySort(MY_TYPE   *aArray,
         {
             sMiddle = (sLeft + sRight) >> 1;
 
-            if ((*aCmpCb)(sPivot, aArray[sMiddle]) == MY_LESS)
+            if ((*aCmpCb)(sPivot, aArray[sMiddle]) == -1)
             {
                 sRight = sMiddle;
             }
@@ -289,7 +291,7 @@ static int32_t timGallopLeft(MY_TYPE    aKey,
     sLastOffset = 0;
     sOffset     = 1;
 
-    if ((*aCmpCb)(aKey, aArray[aBase + aHint]) == MY_GREATER)
+    if ((*aCmpCb)(aKey, aArray[aBase + aHint]) == 1)
     {
         /*
          * key > a[b+h]
@@ -300,7 +302,7 @@ static int32_t timGallopLeft(MY_TYPE    aKey,
 
         while (sOffset < sMaxOffset)
         {
-            if ((*aCmpCb)(aKey, aArray[aBase + aHint + sOffset]) == MY_GREATER)
+            if ((*aCmpCb)(aKey, aArray[aBase + aHint + sOffset]) == 1)
             {
                 sLastOffset = sOffset;
                 sOffset     = (sOffset << 1) + 1;
@@ -331,7 +333,7 @@ static int32_t timGallopLeft(MY_TYPE    aKey,
 
         while (sOffset < sMaxOffset)
         {
-            if ((*aCmpCb)(aKey, aArray[aBase + aHint - sOffset]) == MY_GREATER)
+            if ((*aCmpCb)(aKey, aArray[aBase + aHint - sOffset]) == 1)
             {
                 break;
             }
@@ -370,7 +372,7 @@ static int32_t timGallopLeft(MY_TYPE    aKey,
     {
         sMiddle = sLastOffset + ((sOffset - sLastOffset) >> 1);
 
-        if ((*aCmpCb)(aKey, aArray[aBase + sMiddle]) == MY_GREATER)
+        if ((*aCmpCb)(aKey, aArray[aBase + sMiddle]) == 1)
         {
             /* a[b+m] < key */
             sLastOffset = sMiddle + 1;
@@ -422,7 +424,7 @@ static int32_t timGallopRight(MY_TYPE    aKey,
     sLastOffset = 0;
     sOffset     = 1;
 
-    if ((*aCmpCb)(aKey, aArray[aBase + aHint]) == MY_LESS)
+    if ((*aCmpCb)(aKey, aArray[aBase + aHint]) == -1)
     {
         /*
          * key < a[b+h]
@@ -433,7 +435,7 @@ static int32_t timGallopRight(MY_TYPE    aKey,
 
         while (sOffset < sMaxOffset)
         {
-            if ((*aCmpCb)(aKey, aArray[aBase + aHint - sOffset]) == MY_LESS)
+            if ((*aCmpCb)(aKey, aArray[aBase + aHint - sOffset]) == -1)
             {
                 sLastOffset = sOffset;
                 sOffset     = (sOffset << 1) + 1;
@@ -465,7 +467,7 @@ static int32_t timGallopRight(MY_TYPE    aKey,
 
         while (sOffset < sMaxOffset)
         {
-            if ((*aCmpCb)(aKey, aArray[aBase + aHint + sOffset]) == MY_LESS)
+            if ((*aCmpCb)(aKey, aArray[aBase + aHint + sOffset]) == -1)
             {
                 break;
             }
@@ -503,7 +505,7 @@ static int32_t timGallopRight(MY_TYPE    aKey,
     {
         sMiddle = sLastOffset + ((sOffset - sLastOffset) >> 1);
 
-        if ((*aCmpCb)(aKey, aArray[aBase + sMiddle]) == MY_LESS)
+        if ((*aCmpCb)(aKey, aArray[aBase + sMiddle]) == -1)
         {
             /* key < a[b+m] */
             sOffset = sMiddle;
@@ -537,7 +539,7 @@ static void timMergeGetMem(timMergeState *aState, uint32_t aNeed)
 
     timMergeFreeMem(aState);
 
-    aState->mMergeMem = (MY_TYPE *)malloc(aNeed * sizeof(MY_TYPE));
+    aState->mMergeMem = (MY_TYPE *)malloc(aNeed * aState->mWidth);
     assert(aState->mMergeMem != NULL);
 
     aState->mMergeMemSize = aNeed;
@@ -616,7 +618,7 @@ static void timMergeLow(timMergeState *aState,
      * In MergeLow, aLen1 is always less than aLen2
      */
     timMergeGetMem(aState, aLen1);
-    memcpy(aState->mMergeMem, sArray + aBase1, sizeof(MY_TYPE) * aLen1);
+    memcpy(aState->mMergeMem, sArray + aBase1, aState->mWidth * aLen1);
     sTmp = aState->mMergeMem;
 
     sCursor1    = 0;
@@ -652,7 +654,7 @@ static void timMergeLow(timMergeState *aState,
         {
             assert(aLen1 > 1 && aLen2 > 0);
 
-            if ((*aCmpCb)(sArray[sCursor2], sTmp[sCursor1]) == MY_LESS)
+            if ((*aCmpCb)(sArray[sCursor2], sTmp[sCursor1]) == -1)
             {
                 sArray[sDestIndex] = sArray[sCursor2];
                 sDestIndex++;
@@ -701,7 +703,7 @@ static void timMergeLow(timMergeState *aState,
 
             if (sCount1 != 0)
             {
-                memcpy(sArray + sDestIndex, sTmp + sCursor1, sizeof(MY_TYPE) * sCount1);
+                memcpy(sArray + sDestIndex, sTmp + sCursor1, aState->mWidth * sCount1);
                 sDestIndex += sCount1;
                 sCursor1   += sCount1;
                 aLen1      -= sCount1;
@@ -728,7 +730,7 @@ static void timMergeLow(timMergeState *aState,
             if (sCount2 != 0)
             {
                 /* src and dst may overlap, so we should call memmove instead of memcpy */
-                memmove(sArray + sDestIndex, sArray + sCursor2, sizeof(MY_TYPE) * sCount2);
+                memmove(sArray + sDestIndex, sArray + sCursor2, aState->mWidth * sCount2);
                 sDestIndex += sCount2;
                 sCursor2   += sCount2;
                 aLen2      -= sCount2;
@@ -752,7 +754,7 @@ LABEL_SUCCEED:
 
     if (aLen1 > 0)
     {
-        memcpy(sArray + sDestIndex, sTmp + sCursor1, sizeof(MY_TYPE) * aLen1);
+        memcpy(sArray + sDestIndex, sTmp + sCursor1, aState->mWidth * aLen1);
     }
 
     return;
@@ -761,7 +763,7 @@ LABEL_COPY_B:
     assert(aLen1 == 1 && aLen2 > 0);
 
     /* The last element of the first run belongs at the end of the merge */
-    memmove(sArray + sDestIndex, sArray + sCursor2, sizeof(MY_TYPE) * aLen2);
+    memmove(sArray + sDestIndex, sArray + sCursor2, aState->mWidth * aLen2);
     sArray[sDestIndex + aLen2] = sTmp[sCursor1];
 
     return;
@@ -832,7 +834,7 @@ static void timMergeHigh(timMergeState *aState,
     timMergeGetMem(aState, aLen2);
 
     /* Copy second run into temp memory */
-    memcpy(aState->mMergeMem, sArray + aBase2, sizeof(MY_TYPE) * aLen2);
+    memcpy(aState->mMergeMem, sArray + aBase2, aState->mWidth * aLen2);
     sTmp = aState->mMergeMem;
 
     sCursor1   = aBase1 + aLen1 - 1;
@@ -865,7 +867,7 @@ static void timMergeHigh(timMergeState *aState,
         {
             assert(aLen1 > 0 && aLen2 > 1);
 
-            if ((*aCmpCb)(sTmp[sCursor2], sArray[sCursor1]) == MY_LESS)
+            if ((*aCmpCb)(sTmp[sCursor2], sArray[sCursor1]) == -1)
             {
                 sArray[sDestIndex] = sArray[sCursor1];
                 sDestIndex--;
@@ -919,7 +921,7 @@ static void timMergeHigh(timMergeState *aState,
                 sDestIndex -= sCount1;
                 sCursor1   -= sCount1;
                 aLen1      -= sCount1;
-                memmove(sArray + sDestIndex + 1, sArray + sCursor1 + 1, sizeof(MY_TYPE) * sCount1);
+                memmove(sArray + sDestIndex + 1, sArray + sCursor1 + 1, aState->mWidth * sCount1);
 
                 if (aLen1 == 0) goto LABEL_SUCCEED;
             }
@@ -947,7 +949,7 @@ static void timMergeHigh(timMergeState *aState,
                 sDestIndex -= sCount2;
                 sCursor2   -= sCount2;
                 aLen2      -= sCount2;
-                memcpy(sArray + sDestIndex + 1, sTmp + sCursor2 + 1, sizeof(MY_TYPE) * sCount2);
+                memcpy(sArray + sDestIndex + 1, sTmp + sCursor2 + 1, aState->mWidth * sCount2);
                 if (aLen2 == 1) goto LABEL_COPY_A;
                 if (aLen2 == 0) goto LABEL_SUCCEED;
             }
@@ -969,7 +971,7 @@ LABEL_SUCCEED:
 
     if (aLen2 > 0)
     {
-        memcpy(sArray + sDestIndex - (aLen2 - 1), sTmp, aLen2 * sizeof(MY_TYPE));
+        memcpy(sArray + sDestIndex - (aLen2 - 1), sTmp, aLen2 * aState->mWidth);
     }
 
     return;
@@ -979,7 +981,7 @@ LABEL_COPY_A:
 
     sDestIndex -= aLen1;
     sCursor1   -= aLen1;
-    memmove(sArray + sDestIndex + 1, sArray + sCursor1 + 1, aLen1 * sizeof(MY_TYPE));
+    memmove(sArray + sDestIndex + 1, sArray + sCursor1 + 1, aLen1 * aState->mWidth);
     sArray[sDestIndex] = sTmp[sCursor2];
 
     return;
@@ -1154,18 +1156,18 @@ static void timMergeForceCollapse(timMergeState *aState, myCmpFunc *aCmpCb)
     }
 }
 
-void timSort(MY_TYPE *aArray, uint32_t aElementCnt, myCmpFunc *aCmpCb)
+void timSort(MY_TYPE *aArray, size_t aElementCnt, size_t aWidth, myCmpFunc *aCmpCb)
 {
     timMergeState sState;
 
-    int32_t       sIndexLow  = 0;
-    int32_t       sIndexHigh = aElementCnt;
+    size_t        sIndexLow  = 0;
+    size_t        sIndexHigh = aElementCnt;
 
-    int32_t       sRemaining = aElementCnt;
-    int32_t       sMinRunLen;
-    int32_t       sRunLen;
+    size_t        sRemaining = aElementCnt;
+    size_t        sMinRunLen;
+    size_t        sRunLen;
 
-    int32_t       sForcedRunLen;
+    size_t        sForcedRunLen;
 
     assert(aElementCnt <= 0x7fffffff);
 
@@ -1178,7 +1180,7 @@ void timSort(MY_TYPE *aArray, uint32_t aElementCnt, myCmpFunc *aCmpCb)
     {
     }
 
-    timMergeStateInit(&sState, aArray);
+    timMergeStateInit(&sState, aArray, aWidth);
 
     sMinRunLen = timCalcMinRunLen(aElementCnt);
     sRemaining = aElementCnt;

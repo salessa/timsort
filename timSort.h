@@ -8,6 +8,6 @@
 
 #include "myType.h"
 
-void timSort(MY_TYPE *aArray, uint32_t aElementCnt, myCmpFunc *aCmpCb);
+void timSort(MY_TYPE *aArray, size_t aElementCnt, size_t aWidth, myCmpFunc *aCmpCb);
 
 #endif
