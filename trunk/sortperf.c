@@ -1,13 +1,10 @@
+#include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
 #include <sys/time.h>
 #include <math.h>
 
-#include "heapSortLibc.h"
-
 #include "timSort.h"
-#include "quickSortLibc.h"
-#include "mergeSortLibc.h"
 
 /*
  * -----------------------------------------------------------------------------
@@ -22,9 +19,8 @@ typedef struct perfContext
     int32_t      mCount;            /* read from input file */
 
     uint32_t    *mArrayToSort;      /* array to sort */
-    uint32_t    *mOriginalArray;    /* original array */
 
-    void       (*mSortFunc)(MY_TYPE [], uint32_t, myCmpFunc *);
+    void       (*mSortFunc)(void *, size_t, size_t, int (*compar)(const void *, const void *));
 } perfContext;
 
 static void perfContextInit(perfContext *aContext)
@@ -34,7 +30,27 @@ static void perfContextInit(perfContext *aContext)
     aContext->mCount         = -1;
 
     aContext->mArrayToSort   = NULL;
-    aContext->mOriginalArray = NULL;
+}
+
+/*
+ * -----------------------------------------------------------------------------
+ *  Wrappers for heapsort and mergesort
+ * -----------------------------------------------------------------------------
+ */
+static void mergesortLibc(void    *base,
+                          size_t   nel,
+                          size_t   width,
+                          int    (*compar)(const void *, const void *))
+{
+    (void)mergesort(base, nel, width, compar);
+}
+
+static void heapsortLibc(void    *base,
+                         size_t   nel,
+                         size_t   width,
+                         int    (*compar)(const void *, const void *))
+{
+    (void)heapsort(base, nel, width, compar);
 }
 
 /*
@@ -59,19 +75,19 @@ static int32_t verifyArrayIsSorted(uint32_t *aArray, int32_t aCount)
  *  Compare function to deliver to sorting functions
  * -----------------------------------------------------------------------------
  */
-static myCmpRc compareFunc(MY_TYPE aElem1, MY_TYPE aElem2)
+static int32_t compareFunc(MY_TYPE aElem1, MY_TYPE aElem2)
 {
     if (aElem1 > aElem2)
     {
-        return MY_GREATER;
+        return 1;
     }
     else if (aElem1 < aElem2)
     {
-        return MY_LESS;
+        return -1;
     }
     else
     {
-        return MY_EQUAL;
+        return 0;
     }
 }
 
@@ -147,28 +163,12 @@ static void createArray(perfContext *aContext)
 {
     /*
      * Note : It is ubsurd to allocate a linear memory of such a big size.
-     *        Operating system might swap out the memory if the system has not enough memory,
-     *        and it might undermine the credibility of this performance test.
-     */
-    aContext->mOriginalArray = malloc(aContext->mCount);
-
-    if (aContext->mOriginalArray == NULL)
-    {
-        (void)fprintf(stderr, "error : malloc fail\n");
-        exit(0);
-    }
-    else
-    {
-    }
-
-    /*
-     * Note : It is ubsurd to allocate a linear memory of such a big size.
      *        Operating system might swap out the memory if the system has not enough memory.
      *        and it might undermine the credibility of this performance test.
      */
     aContext->mArrayToSort = malloc(aContext->mCount);
 
-    if (aContext->mOriginalArray == NULL)
+    if (aContext->mArrayToSort == NULL)
     {
         (void)fprintf(stderr, "error : malloc fail\n");
         exit(0);
@@ -199,7 +199,7 @@ static void fillArray(FILE *aFileHandle, perfContext *aContext)
         {
         }
 
-        aContext->mOriginalArray[i] = sNumber;
+        aContext->mArrayToSort[i] = sNumber;
     }
 }
 
@@ -257,15 +257,15 @@ static void processArgDetermineSortFunc(char        *aProgramName,
 {
     if (strcmp(aAlgorithmName, "quick") == 0)
     {
-        aContext->mSortFunc = quickSortLibc;
+        aContext->mSortFunc = qsort;
     }
     else if (strcmp(aAlgorithmName, "merge") == 0)
     {
-        aContext->mSortFunc = mergeSortLibc;
+        aContext->mSortFunc = mergesortLibc;
     }
     else if (strcmp(aAlgorithmName, "heap") == 0)
     {
-        aContext->mSortFunc = heapSortLibc;
+        aContext->mSortFunc = heapsortLibc;
     }
     else if (strcmp(aAlgorithmName, "tim") == 0)
     {
@@ -329,20 +329,34 @@ int32_t main(int32_t aArgc, char *aArgv[])
 
     uint32_t       *sArray;
 
+    /*
+     * Init
+     */
     perfContextInit(&sContext);
 
     processArg(aArgc, aArgv, &sContext);
 
+    /*
+     * Allocate memory and load data
+     */
     createAndFillArray(&sContext);
 
+    sArray = sContext.mArrayToSort;
+
+    /*
+     * Sort it!
+     */
     (void)fprintf(stderr, "Start sorting...\n");
     (void)gettimeofday(&sStart, NULL);
 
-    (*sContext.mSortFunc)((MY_TYPE *)sArray, sContext.mCount, compareFunc);
+    (*sContext.mSortFunc)((MY_TYPE *)sArray, sContext.mCount, sizeof(uint32_t), compareFunc);
 
     (void)gettimeofday(&sEnd, NULL);
     (void)fprintf(stderr, "Completed sorting...\n");
 
+    /*
+     * Calculate time
+     */
     sSeconds  = sEnd.tv_sec - sStart.tv_sec;
     sUseconds = sEnd.tv_usec - sStart.tv_usec;
 
@@ -355,6 +369,9 @@ int32_t main(int32_t aArgc, char *aArgv[])
     (void)fprintf(stderr, "\nIt took %d.%06d seconds to sort %d elements.\n\n",
                   sSeconds, sUseconds, sContext.mCount);
 
+    /*
+     * Verify if option is set
+     */
     if (sContext.mDoVerify == 1)
     {
         (void)fprintf(stderr, "Checking if resulting array is correctly sorted...... ");
@@ -369,6 +386,9 @@ int32_t main(int32_t aArgc, char *aArgv[])
         }
     }
 
+    /*
+     * Free memory
+     */
     destroyArray(sArray);
 
     return 0;
