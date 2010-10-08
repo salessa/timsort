@@ -324,7 +324,7 @@ static int32_t timGallopLeft(MY_TYPE    aKey,
     {
         /*
          * key <= a[b+h]
-         * Gallop right until a[b+h+sLastOffset] < key <= a[b+h+sOffset]
+         * Gallop left until a[b+h+sLastOffset] < key <= a[b+h+sOffset]
          * (a : aArray, b : aBase, h : aHint)
          */
         sMaxOffset = aHint + 1;
