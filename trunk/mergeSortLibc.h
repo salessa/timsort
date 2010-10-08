@@ -1,5 +1,5 @@
-#ifndef __LIBC_MERGE_SORT_H__
-#define __LIBC_MERGE_SORT_H__
+#ifndef __MERGE_SORT_LIBC_H__
+#define __MERGE_SORT_LIBC_H__
 
 #include <stdint.h>
 #include <stdlib.h>

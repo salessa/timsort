@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "quickSort.h"
+#include "quickSortLibc.h"
 
 static int32_t qCompCb(const void *aElem1, const void *aElem2)
 {
@@ -19,7 +19,7 @@ static int32_t qCompCb(const void *aElem1, const void *aElem2)
     }
 }
 
-void quickSort(MY_TYPE aArray[], uint32_t aElementCnt, myCmpFunc *aCmpCb)
+void quickSortLibc(MY_TYPE aArray[], uint32_t aElementCnt, myCmpFunc *aCmpCb)
 {
     aCmpCb = aCmpCb;
 

@@ -6,7 +6,7 @@
 #include "heapSortLibc.h"
 
 #include "timSort.h"
-#include "quickSort.h"
+#include "quickSortLibc.h"
 #include "mergeSortLibc.h"
 
 /*
