@@ -4,7 +4,7 @@
 #include <sys/time.h>
 #include <math.h>
 
-#include "timSort.h"
+#include "timsort.h"
 
 /*
  * -----------------------------------------------------------------------------
