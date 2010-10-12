@@ -1,4 +1,4 @@
-#include "timSort.h"
+#include "timsort.h"
 
 typedef int cmpFunc(const void *, const void *);
 
@@ -304,7 +304,7 @@ static void timMergeStatePushRun(timMergeState *aState, int32_t aBase, uint32_t 
  * aBase  : the index of the first element in the range
  * aLen   : the length of the range
  * aHint  : the index at which to begin the search.
- *          the closer hint is to the result, the faster timSort runs.
+ *          the closer hint is to the result, the faster timsort runs.
  *
  * returns k (0 <= k <= aLen) such that
  *
@@ -446,7 +446,7 @@ static int32_t timGallopLeft(const void    *aKey,
  * aBase  : the index of the first element in the range
  * aLen   : the length of the range
  * aHint  : the index at which to begin the search.
- *          the closer hint is to the result, the faster timSort runs.
+ *          the closer hint is to the result, the faster timsort runs.
  *
  * returns k (0 <= k <= aLen) such that
  *
