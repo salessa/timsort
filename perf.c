@@ -62,6 +62,14 @@ static int32_t verifyArrayIsSorted(uint32_t *aArray, int32_t aCount)
 {
     int32_t i;
 
+#if 0
+    (void)printf("\n");
+    for (i = 0; i < aCount; i++)
+    {
+        (void)printf("%u\n", *(aArray + i));
+    }
+#endif
+
     for (i = 1; i < aCount; i++)
     {
         if (*(aArray + i - 1) > *(aArray + i)) return -1;
@@ -75,13 +83,13 @@ static int32_t verifyArrayIsSorted(uint32_t *aArray, int32_t aCount)
  *  Compare function to deliver to sorting functions
  * -----------------------------------------------------------------------------
  */
-static int32_t compareFunc(MY_TYPE aElem1, MY_TYPE aElem2)
+static int32_t compareFunc(const void *aElem1, const void *aElem2)
 {
-    if (aElem1 > aElem2)
+    if (*(uint32_t *)aElem1 > *(uint32_t *)aElem2)
     {
         return 1;
     }
-    else if (aElem1 < aElem2)
+    else if (*(uint32_t *)aElem1 < *(uint32_t *)aElem2)
     {
         return -1;
     }
@@ -166,7 +174,7 @@ static void createArray(perfContext *aContext)
      *        Operating system might swap out the memory if the system has not enough memory.
      *        and it might undermine the credibility of this performance test.
      */
-    aContext->mArrayToSort = malloc(aContext->mCount);
+    aContext->mArrayToSort = malloc(aContext->mCount * sizeof(uint32_t));
 
     if (aContext->mArrayToSort == NULL)
     {
@@ -269,7 +277,7 @@ static void processArgDetermineSortFunc(char        *aProgramName,
     }
     else if (strcmp(aAlgorithmName, "tim") == 0)
     {
-        aContext->mSortFunc = timSort;
+        aContext->mSortFunc = timsort;
     }
     else
     {
@@ -339,6 +347,7 @@ int32_t main(int32_t aArgc, char *aArgv[])
     /*
      * Allocate memory and load data
      */
+    (void)fprintf(stderr, "Reading data...\n");
     createAndFillArray(&sContext);
 
     sArray = sContext.mArrayToSort;
@@ -349,10 +358,10 @@ int32_t main(int32_t aArgc, char *aArgv[])
     (void)fprintf(stderr, "Start sorting...\n");
     (void)gettimeofday(&sStart, NULL);
 
-    (*sContext.mSortFunc)((MY_TYPE *)sArray, sContext.mCount, sizeof(uint32_t), compareFunc);
+    (*sContext.mSortFunc)(sArray, sContext.mCount, sizeof(uint32_t), compareFunc);
 
     (void)gettimeofday(&sEnd, NULL);
-    (void)fprintf(stderr, "Completed sorting...\n");
+    (void)fprintf(stderr, "Completed sorting.\n");
 
     /*
      * Calculate time
