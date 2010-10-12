@@ -5,6 +5,7 @@
 #include <math.h>
 
 #include "timsort.h"
+#include "timsort1.h"
 
 /*
  * -----------------------------------------------------------------------------
@@ -254,7 +255,8 @@ static void printUsageAndExit(char *aProgramName)
                           "        quick\n"
                           "        merge\n"
                           "        heap\n"
-                          "        tim\n",
+                          "        tim (index)\n"
+                          "        tim1 (pointer)\n",
                           aProgramName);
     exit(1);
 }
@@ -278,6 +280,10 @@ static void processArgDetermineSortFunc(char        *aProgramName,
     else if (strcmp(aAlgorithmName, "tim") == 0)
     {
         aContext->mSortFunc = timsort;
+    }
+    else if (strcmp(aAlgorithmName, "tim1") == 0)
+    {
+        aContext->mSortFunc = timsort1;
     }
     else
     {

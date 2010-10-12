@@ -17,6 +17,7 @@ GEN_DATA_OBJS      = $(patsubst %.c,%.o,$(GEN_DATA_SRCS))
 
 PERF_EXEC_NAME     = perf
 PERF_SRCS          = timsort.c \
+                     timsort1.c \
                      perf.c
 PERF_OBJS          = $(patsubst %.c,%.o,$(PERF_SRCS))
 
