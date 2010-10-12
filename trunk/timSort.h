@@ -6,8 +6,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "myType.h"
-
-void timSort(MY_TYPE *aArray, size_t aElementCnt, size_t aWidth, myCmpFunc *aCmpCb);
+void timsort(void *aArray, size_t aElementCnt, size_t aWidth, int (*aCmpCb)(const void *, const void *));
 
 #endif
