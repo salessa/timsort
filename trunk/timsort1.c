@@ -14,6 +14,47 @@ typedef int cmpFunc(const void *, const void *);
  */
 #define MIN_MERGE   64
 
+#define SWAP_VAR(_aArg1, _aArg2, _aWidth)                       \
+    do                                                          \
+    {                                                           \
+        register size_t   _sWidth = (_aWidth);                  \
+        register uint8_t *_sArg1  = (_aArg1);                   \
+        register uint8_t *_sArg2  = (_aArg2);                   \
+        do                                                      \
+        {                                                       \
+            uint8_t _sTmp = *_sArg1;                            \
+                                                                \
+            *_sArg1++ = *_sArg2;                                \
+            *_sArg2++ = _sTmp;                                  \
+        } while (--_sWidth > 0);                                \
+    } while (0)
+
+#define SWAP_16(_aArg1, _aArg2)                                 \
+    do                                                          \
+    {                                                           \
+        uint16_t _sTmp = *(uint16_t *)(_aArg1);                 \
+                                                                \
+        *(uint16_t *)(_aArg1) = *(uint16_t *)(_aArg2);          \
+        *(uint16_t *)(_aArg2) = _sTmp;                          \
+    } while (0)
+
+#define SWAP_32(_aArg1, _aArg2)                                 \
+    do                                                          \
+    {                                                           \
+        uint32_t _sTmp = *(uint32_t *)(_aArg1);                 \
+                                                                \
+        *(uint32_t *)(_aArg1) = *(uint32_t *)(_aArg2);          \
+        *(uint32_t *)(_aArg2) = _sTmp;                          \
+    } while (0)
+
+#define SWAP_64(_aArg1, _aArg2)                                 \
+    do                                                          \
+    {                                                           \
+        uint64_t _sTmp = *(uint64_t *)(_aArg1);                 \
+                                                                \
+        *(uint64_t *)(_aArg1) = *(uint64_t *)(_aArg2);          \
+        *(uint64_t *)(_aArg2) = _sTmp;                          \
+    } while (0)
 
 #define COPY(_aDst, _aSrc, _aWidth)                                                 \
     do                                                                              \
@@ -33,7 +74,7 @@ typedef struct timSlice
     uint32_t mLen;
 } timSlice;
 
-typedef struct timMergeState
+typedef struct mergeState
 {
     size_t     mWidth;  /* sizeof an element */
     void      *mArray;  /* pointer to source array */
@@ -49,7 +90,7 @@ typedef struct timMergeState
      */
     uint32_t   mMergeMemSize;
     void      *mMergeMem;
-    void      *mMergeArray; /* pre-allocated in timMergeStateInit().
+    void      *mMergeArray; /* pre-allocated in mergeStateInit().
                                size : TIM_MERGE_TEMP_ARRAY_SIZE * mWidth */
 
     uint32_t   mPendingRunCnt;
@@ -59,9 +100,9 @@ typedef struct timMergeState
 
     void      *mPivot;      /* memory for pivot value in binary insertion sort */
 
-} timMergeState;
+} mergeState;
 
-static void timMergeStateInit(timMergeState *aState, void *aArray, size_t aWidth)
+static void mergeStateInit(mergeState *aState, void *aArray, size_t aWidth)
 {
     aState->mWidth         = aWidth;
     aState->mArray         = aArray;
@@ -86,10 +127,10 @@ static void timMergeStateInit(timMergeState *aState, void *aArray, size_t aWidth
  * returns an integer k where MIN_MERGE / 2 <= k <= MIN_MERGE, such that
  * aSize / k is close to, but strictly less than, an exact power of 2.
  */
-static uint32_t timCalcMinRunLen(uint32_t aSize)
+static size_t timCalcMinRunLen(size_t aSize)
 {
-    uint32_t sBumper = 0;
-    uint32_t sMinRun;
+    size_t sBumper = 0;
+    size_t sMinRun;
 
     assert(aSize >= 0);
 
@@ -104,124 +145,98 @@ static uint32_t timCalcMinRunLen(uint32_t aSize)
     return sMinRun + sBumper;
 }
 
-static void timReverseSlice(timMergeState *aState, uint32_t aIndexLow, uint32_t aIndexHigh)
+/*
+ * Reverse Slice.
+ * Range will be from aLow to aHigh - 1. (excluding aHigh)
+ */
+static void timReverseSlice(const size_t aWidth, void *aLow, void *aHigh)
 {
-    register size_t   sWidth;
-    register uint8_t *sPtr1;
-    register uint8_t *sPtr2;
-    uint8_t           sTemp;
+    aHigh = (uint8_t *)aHigh - aWidth;
 
-    aIndexHigh--;
-
-    while (aIndexLow < aIndexHigh)
+    while (aLow < aHigh)
     {
-        sWidth = aState->mWidth;
-
-        /*
-         * Swap two elements
-         */
-        sPtr1 = ((uint8_t *)aState->mArray) + sWidth * aIndexLow;
-        sPtr2 = ((uint8_t *)aState->mArray) + sWidth * aIndexHigh;
-
-        do
-        {
-            sTemp    = *sPtr1;
-            *sPtr1++ = *sPtr2;
-            *sPtr2++ = sTemp;
-        } while (--sWidth > 0);
-
-        aIndexLow++;
-        aIndexHigh--;
+        SWAP_VAR(aLow, aHigh, aWidth);
+        aLow  = (uint8_t *)aLow + aWidth;
+        aHigh = (uint8_t *)aHigh - aWidth;
     }
 }
 
-static uint32_t timCountRunAndMakeAscending(timMergeState *aState,
-                                            int32_t        aIndexLow,
-                                            int32_t        aIndexHigh,
-                                            cmpFunc       *aCmpCb)
+static size_t timCountRunAndMakeAscending(const size_t   aWidth,
+                                          const void    *aLow,
+                                          const void    *aHigh,
+                                          const cmpFunc *aCmpCb)
 {
-    const size_t sWidth = aState->mWidth;
+    register size_t  sRunLen = 0;
+    const uint8_t   *sCursor;
 
-    int32_t  sIndexCur;
-    uint8_t *sArray = (uint8_t *)aState->mArray;
+    assert(aLow < aHigh);
 
-    assert(aIndexLow < aIndexHigh);
-
-    if (aIndexLow + 1 == aIndexHigh)
-    {
-        return 1;
-    }
-    else
-    {
-    }
+    sCursor = (const uint8_t *)aLow + aWidth;
+    if (sCursor == aHigh) return 1;
 
     /*
      * Check the values of the first two elements of the aArray
      * and determine if it is assencing or descending.
      * And then start checking how long respective patterns go.
      */
-    if ((*aCmpCb)(sArray + (aIndexLow * sWidth), 
-                  sArray + ((aIndexLow + 1) * sWidth)) == -1)
+    if ((*aCmpCb)(sCursor - aWidth, sCursor) > 0)
     {
         /*
-         * The first two elements are in ASCENDING order
-         *
-         * "ASCENDING" is defined as
-         *
-         *      a[0] <= a[1] <= a[2] <= ...
+         * The first two elements are in DESCENDING order.
+         * "DESCENDING" is STRICTLY defined as
+         *      a[0] > a[1] > a[2] > ...
+         * strictly defining "descending" enables preserving stableness.
          */
-        sIndexCur = aIndexLow + 2;
+        sCursor += aWidth;
 
-        while (sIndexCur < aIndexHigh)
+        while ((void *)sCursor < aHigh)
         {
-            if ((*aCmpCb)(sArray + ((sIndexCur - 1) * sWidth), 
-                          sArray + (sIndexCur * sWidth)) != 1)
+            if ((*aCmpCb)(sCursor - aWidth, sCursor) > 0)
             {
-                /* <= */
-                sIndexCur++;
+                /* > */
+                sRunLen++;
             }
             else
             {
-                /* > */
+                /* <= */
                 break;
             }
+
+            sCursor += aWidth;
         }
+
+        timReverseSlice(aWidth, (void *)aLow, (void *)sCursor);
     }
     else
     {
         /*
-         * The first two elements are in DESCENDING order
-         *
-         * "DESCENDING" is STRICTLY defined as
-         *
-         *      a[0] > a[1] > a[2] > ...
-         *
-         * strictly defining "descending" enables preserving stableness.
+         * The first two elements are in ASCENDING order.
+         * "ASCENDING" is defined as
+         *      a[0] <= a[1] <= a[2] <= ...
          */
-        sIndexCur = aIndexLow + 2;
+        sCursor += aWidth;
 
-        while (sIndexCur < aIndexHigh)
+        while ((void *)sCursor < aHigh)
         {
-            if ((*aCmpCb)(sArray + ((sIndexCur - 1) * sWidth), 
-                          sArray + (sIndexCur * sWidth)) == 1)
+            if ((*aCmpCb)(sCursor - aWidth, sCursor) > 0)
             {
                 /* > */
-                sIndexCur++;
+                break;
             }
             else
             {
                 /* <= */
-                break;
+                sRunLen++;
             }
-        }
 
-        timReverseSlice(aState, aIndexLow, sIndexCur);
+            sCursor += aWidth;
+        }
     }
 
-    return (uint32_t)(sIndexCur - aIndexLow);
+    return sRunLen;
 }
 
-static void timDoBinarySort(timMergeState *aState,
+static void timDoBinarySort(mergeState *aState,
                             int32_t        aIndexLow,
                             int32_t        aIndexHigh,
                             int32_t        aIndexStart,
@@ -283,7 +298,7 @@ static void timDoBinarySort(timMergeState *aState,
     }
 }
 
-static void timMergeStatePushRun(timMergeState *aState, int32_t aBase, uint32_t aRunLen)
+static void mergeStatePushRun(mergeState *aState, int32_t aBase, uint32_t aRunLen)
 {
     assert(aState->mPendingRunCnt < TIM_MAX_PENDING_RUN_CNT);
 
@@ -571,7 +586,7 @@ static int32_t timGallopRight(const void    *aKey,
     return sOffset;
 }
 
-static void timMergeFreeMem(timMergeState *aState)
+static void timMergeFreeMem(mergeState *aState)
 {
     if (aState->mMergeMem != aState->mMergeArray)
     {
@@ -582,7 +597,7 @@ static void timMergeFreeMem(timMergeState *aState)
     aState->mMergeMemSize = TIM_MERGE_TEMP_ARRAY_SIZE;
 }
 
-static void timMergeGetMem(timMergeState *aState, uint32_t aNeed)
+static void timMergeGetMem(mergeState *aState, uint32_t aNeed)
 {
     if (aNeed <= aState->mMergeMemSize) return;
 
@@ -643,7 +658,7 @@ static void timMergeGetMem(timMergeState *aState, uint32_t aNeed)
  *
  * timMergeLow() conducts merge from left to right.
  */
-static void timMergeLow(timMergeState *aState,
+static void timMergeLow(mergeState *aState,
                         int32_t        aBase1,
                         int32_t        aLen1,
                         int32_t        aBase2,
@@ -864,7 +879,7 @@ LABEL_COPY_B:
  *          |<----- aLen1 ----->|<--- aLen2 --->|
  *        aBase1             aBase2
  */
-static void timMergeHigh(timMergeState *aState,
+static void timMergeHigh(mergeState *aState,
                          int32_t        aBase1,
                          int32_t        aLen1,
                          int32_t        aBase2,
@@ -1053,12 +1068,12 @@ LABEL_COPY_A:
 /*
  * Merges the two runs at stack indices i and i + 1.
  * Run i must be the penultimate or antepenultimate run on the stack.
- * IOW, i must be equal to 
+ * IOW, i must be equal to
  *
- *       i == PendingRunCnt - 2 or 
+ *       i == PendingRunCnt - 2 or
  *       i == PendingRuncnt - 3.
  */
-static void timMergeAt(timMergeState *aState, uint32_t aWhere, cmpFunc *aCmpCb)
+static void timMergeAt(mergeState *aState, uint32_t aWhere, cmpFunc *aCmpCb)
 {
     int32_t sBaseA;
     int32_t sLenA;
@@ -1165,7 +1180,7 @@ static void timMergeAt(timMergeState *aState, uint32_t aWhere, cmpFunc *aCmpCb)
  * so the invariants are guaranteed to hold for i < PendingRunCnt upon
  * entry to the method.
  */
-static void timMergeCollapse(timMergeState *aState, cmpFunc *aCmpCb)
+static void timMergeCollapse(mergeState *aState, cmpFunc *aCmpCb)
 {
     uint32_t  n;
     timSlice *sSlice = aState->mPendingRun;
@@ -1200,7 +1215,7 @@ static void timMergeCollapse(timMergeState *aState, cmpFunc *aCmpCb)
 /*
  * Merges all runs on the stack until only one remains.
  */
-static void timMergeForceCollapse(timMergeState *aState, cmpFunc *aCmpCb)
+static void timMergeForceCollapse(mergeState *aState, cmpFunc *aCmpCb)
 {
     int32_t  n;
     timSlice *sSlice = aState->mPendingRun;
@@ -1221,10 +1236,13 @@ static void timMergeForceCollapse(timMergeState *aState, cmpFunc *aCmpCb)
     }
 }
 
-void timsort1(void *aArray, size_t aElementCnt, size_t aWidth, int (*aCmpCb)(const void *, const void *))
+void timsort1(void    *aArray,
+              size_t   aElementCnt,
+              size_t   aWidth,
+              int    (*aCmpCb)(const void *, const void *))
 {
-    cmpFunc       *sCmpCb = (cmpFunc *)aCmpCb;
-    timMergeState  sState;
+    const cmpFunc *sCmpCb = (const cmpFunc *)aCmpCb;
+    mergeState     sState;
 
     size_t         sIndexLow  = 0;
     size_t         sIndexHigh = aElementCnt;
@@ -1246,14 +1264,17 @@ void timsort1(void *aArray, size_t aElementCnt, size_t aWidth, int (*aCmpCb)(con
     {
     }
 
-    timMergeStateInit(&sState, aArray, aWidth);
+    mergeStateInit(&sState, aArray, aWidth);
 
     sMinRunLen = timCalcMinRunLen(aElementCnt);
     sRemaining = aElementCnt;
 
     do
     {
-        sRunLen = timCountRunAndMakeAscending(&sState, sIndexLow, sIndexHigh, sCmpCb);
+        sRunLen = timCountRunAndMakeAscending(sState.mWidth,
+                                              (uint8_t *)aArray + sIndexLow * aWidth,
+                                              (uint8_t *)aArray + sIndexHigh * aWidth,
+                                              sCmpCb);
 
         if (sRunLen < sMinRunLen)
         {
@@ -1278,7 +1299,7 @@ void timsort1(void *aArray, size_t aElementCnt, size_t aWidth, int (*aCmpCb)(con
         /*
          * Push this run onto pending-runs stack, and maybe merge
          */
-        timMergeStatePushRun(&sState, sIndexLow, sRunLen);
+        mergeStatePushRun(&sState, sIndexLow, sRunLen);
         timMergeCollapse(&sState, sCmpCb);
 
         /*
