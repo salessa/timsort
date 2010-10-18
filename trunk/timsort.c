@@ -67,10 +67,10 @@ static void timMergeStateInit(timMergeState *aState, void *aArray, size_t aWidth
     aState->mArray         = aArray;
 
     aState->mMergeArray    = malloc(aWidth * TIM_MERGE_TEMP_ARRAY_SIZE);
-    assert(aState->mMergeArray != NULL);
+    // assert(aState->mMergeArray != NULL);
 
     aState->mPivot         = malloc(aWidth);
-    assert(aState->mPivot != NULL);
+    // assert(aState->mPivot != NULL);
 
     aState->mMergeMem      = aState->mMergeArray;
     aState->mMergeMemSize  = TIM_MERGE_TEMP_ARRAY_SIZE;
@@ -91,7 +91,7 @@ static uint32_t timCalcMinRunLen(uint32_t aSize)
     uint32_t sBumper = 0;
     uint32_t sMinRun;
 
-    assert(aSize >= 0);
+    // assert(aSize >= 0);
 
     sMinRun = aSize;
 
@@ -145,7 +145,7 @@ static uint32_t timCountRunAndMakeAscending(timMergeState *aState,
     int32_t  sIndexCur;
     uint8_t *sArray = (uint8_t *)aState->mArray;
 
-    assert(aIndexLow < aIndexHigh);
+    // assert(aIndexLow < aIndexHigh);
 
     if (aIndexLow + 1 == aIndexHigh)
     {
@@ -236,7 +236,7 @@ static void timDoBinarySort(timMergeState *aState,
 
     int32_t        i;
 
-    assert(aIndexLow <= aIndexStart && aIndexStart <= aIndexHigh);
+    // assert(aIndexLow <= aIndexStart && aIndexStart <= aIndexHigh);
 
     if (aIndexLow == aIndexStart) aIndexStart++;
 
@@ -247,7 +247,7 @@ static void timDoBinarySort(timMergeState *aState,
         sLeft  = aIndexLow;
         sRight = aIndexStart;
 
-        assert(sLeft < sRight);
+        // assert(sLeft < sRight);
 
         /*
          * Invariants :
@@ -269,7 +269,7 @@ static void timDoBinarySort(timMergeState *aState,
             }
         }
 
-        assert(sLeft == sRight);
+        // assert(sLeft == sRight);
 
         /*
          * Slide over to make room
@@ -285,7 +285,7 @@ static void timDoBinarySort(timMergeState *aState,
 
 static void timMergeStatePushRun(timMergeState *aState, int32_t aBase, uint32_t aRunLen)
 {
-    assert(aState->mPendingRunCnt < TIM_MAX_PENDING_RUN_CNT);
+    // assert(aState->mPendingRunCnt < TIM_MAX_PENDING_RUN_CNT);
 
     aState->mPendingRun[aState->mPendingRunCnt].mBaseIndex = aBase;
     aState->mPendingRun[aState->mPendingRunCnt].mLen       = aRunLen;
@@ -334,7 +334,7 @@ static int32_t timGallopLeft(const void    *aKey,
     int32_t  sTemp;
     int32_t  sMiddle;
 
-    assert(aLen > 0 && aHint >= 0 && aHint < aLen);
+    // assert(aLen > 0 && aHint >= 0 && aHint < aLen);
 
     sLastOffset = 0;
     sOffset     = 1;
@@ -403,7 +403,7 @@ static int32_t timGallopLeft(const void    *aKey,
         sOffset     = aHint - sTemp;
     }
 
-    assert(-1 <= sLastOffset && sLastOffset < sOffset && sOffset <= aLen);
+    // assert(-1 <= sLastOffset && sLastOffset < sOffset && sOffset <= aLen);
 
     /*
      * Now a[b+sLastOffset] < key <= a[b+sOffset].
@@ -432,7 +432,7 @@ static int32_t timGallopLeft(const void    *aKey,
         }
     }
 
-    assert(sLastOffset == sOffset);
+    // assert(sLastOffset == sOffset);
 
     return sOffset;
 }
@@ -468,7 +468,7 @@ static int32_t timGallopRight(const void    *aKey,
     int32_t  sTemp;
     int32_t  sMiddle;
 
-    assert(aLen > 0 && aHint >= 0 && aHint < aLen);
+    // assert(aLen > 0 && aHint >= 0 && aHint < aLen);
 
     sLastOffset = 0;
     sOffset     = 1;
@@ -537,7 +537,7 @@ static int32_t timGallopRight(const void    *aKey,
         sOffset     += aHint;
     }
 
-    assert(-1 <= sLastOffset && sLastOffset < sOffset && sOffset <= aLen);
+    // assert(-1 <= sLastOffset && sLastOffset < sOffset && sOffset <= aLen);
 
     /*
      * Now a[b + sLastOffset] <= key < a[b + sOffset].
@@ -566,7 +566,7 @@ static int32_t timGallopRight(const void    *aKey,
         }
     }
 
-    assert(sLastOffset == sOffset);
+    // assert(sLastOffset == sOffset);
 
     return sOffset;
 }
@@ -589,7 +589,7 @@ static void timMergeGetMem(timMergeState *aState, uint32_t aNeed)
     timMergeFreeMem(aState);
 
     aState->mMergeMem = malloc(aNeed * aState->mWidth);
-    assert(aState->mMergeMem != NULL);
+    // assert(aState->mMergeMem != NULL);
 
     aState->mMergeMemSize = aNeed;
 }
@@ -661,7 +661,7 @@ static void timMergeLow(timMergeState *aState,
     int32_t       sCursor2;    /* Indexes into original array. run2 */
     int32_t       sDestIndex;  /* Indexes into original array. merge buffer */
 
-    assert(aLen1 > 0 && aLen2 > 0 && aBase1 + aLen1 == aBase2);
+    // assert(aLen1 > 0 && aLen2 > 0 && aBase1 + aLen1 == aBase2);
 
     /*
      * Should always prepare temp memory with size s; s = min(len(run1), len(run2))
@@ -703,7 +703,7 @@ static void timMergeLow(timMergeState *aState,
 
         do  /* Normal merge : left to right */
         {
-            assert(aLen1 > 1 && aLen2 > 0);
+            // assert(aLen1 > 1 && aLen2 > 0);
 
             if ((*aCmpCb)(sArray + sCursor2 * sWidth, sTmp + sCursor1 * sWidth) == -1)
             {
@@ -741,7 +741,7 @@ static void timMergeLow(timMergeState *aState,
         sMinGallop++;
         do
         {
-            assert(aLen1 > 1 && aLen2 > 0);
+            // assert(aLen1 > 1 && aLen2 > 0);
             sMinGallop -= sMinGallop > 1;
             aState->mMinGallop = sMinGallop;
 
@@ -813,7 +813,7 @@ LABEL_SUCCEED:
     return;
 
 LABEL_COPY_B:
-    assert(aLen1 == 1 && aLen2 > 0);
+    // assert(aLen1 == 1 && aLen2 > 0);
 
     /* The last element of the first run belongs at the end of the merge */
     memmove(sArray + sDestIndex * sWidth, sArray + sCursor2 * sWidth, sWidth * aLen2);
@@ -920,7 +920,7 @@ static void timMergeHigh(timMergeState *aState,
 
         do  /* Normal merge : right to left */
         {
-            assert(aLen1 > 0 && aLen2 > 1);
+            // assert(aLen1 > 0 && aLen2 > 1);
 
             if ((*aCmpCb)(sTmp + sCursor2 * sWidth, sArray + sCursor1 * sWidth) == -1)
             {
@@ -958,7 +958,7 @@ static void timMergeHigh(timMergeState *aState,
         sMinGallop++;
         do
         {
-            assert(aLen1 > 0 && aLen2 > 1);
+            // assert(aLen1 > 0 && aLen2 > 1);
             sMinGallop -= sMinGallop > 1;
             aState->mMinGallop = sMinGallop;
 
@@ -1038,7 +1038,7 @@ LABEL_SUCCEED:
     return;
 
 LABEL_COPY_A:
-    assert(aLen2 == 1 && aLen1 > 0);
+    // assert(aLen2 == 1 && aLen1 > 0);
 
     sDestIndex -= aLen1;
     sCursor1   -= aLen1;
@@ -1066,16 +1066,16 @@ static void timMergeAt(timMergeState *aState, uint32_t aWhere, cmpFunc *aCmpCb)
     int32_t sLenB;
     int32_t k;
 
-    assert(aState->mPendingRunCnt >= 2);
-    assert(aWhere == aState->mPendingRunCnt - 2 || aWhere == aState->mPendingRunCnt - 3);
+    // assert(aState->mPendingRunCnt >= 2);
+    // assert(aWhere == aState->mPendingRunCnt - 2 || aWhere == aState->mPendingRunCnt - 3);
 
     sBaseA = aState->mPendingRun[aWhere].mBaseIndex;
     sLenA  = aState->mPendingRun[aWhere].mLen;
     sBaseB = aState->mPendingRun[aWhere + 1].mBaseIndex;
     sLenB  = aState->mPendingRun[aWhere + 1].mLen;
 
-    assert(sLenA > 0 && sLenB > 0);
-    assert(sBaseA + sLenA == sBaseB);
+    // assert(sLenA > 0 && sLenB > 0);
+    // assert(sBaseA + sLenA == sBaseB);
 
     /*
      * Record the length of the combined runs;
@@ -1105,7 +1105,7 @@ static void timMergeAt(timMergeState *aState, uint32_t aWhere, cmpFunc *aCmpCb)
                        sLenA,
                        0,
                        aCmpCb);
-    assert(k >= 0);
+    // assert(k >= 0);
 
     sBaseA += k;
     sLenA  -= k;
@@ -1123,7 +1123,7 @@ static void timMergeAt(timMergeState *aState, uint32_t aWhere, cmpFunc *aCmpCb)
                           sLenB,
                           sLenB - 1,
                           aCmpCb);
-    assert(sLenB >= 0);
+    // assert(sLenB >= 0);
 
     if (sLenB == 0) return;
 
@@ -1235,7 +1235,7 @@ void timsort(void *aArray, size_t aElementCnt, size_t aWidth, int (*aCmpCb)(cons
 
     size_t         sForcedRunLen;
 
-    assert(aElementCnt <= 0x7fffffff);
+    // assert(aElementCnt <= 0x7fffffff);
 
     if (sRemaining < 2)
     {
@@ -1289,13 +1289,13 @@ void timsort(void *aArray, size_t aElementCnt, size_t aWidth, int (*aCmpCb)(cons
 
     } while (sRemaining != 0);
 
-    assert(sIndexLow == sIndexHigh);
+    // assert(sIndexLow == sIndexHigh);
 
     /*
      * Merge all remaining runs to complete sort
      */
     timMergeForceCollapse(&sState, sCmpCb);
 
-    assert(sState.mPendingRunCnt == 1);
+    // assert(sState.mPendingRunCnt == 1);
 }
 

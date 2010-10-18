@@ -8,7 +8,7 @@
 
 CC        = gcc
 LD        = gcc
-CFLAGS   += -Wall -g -O2
+CFLAGS   += -Wall -g -O3 -fomit-frame-pointer -march=i686
 GCOVOPT   = -fprofile-arcs -ftest-coverage
 
 GEN_DATA_EXEC_NAME = gendata
