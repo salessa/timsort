@@ -236,6 +236,68 @@ static size_t timCountRunAndMakeAscending(const size_t   aWidth,
     return sRunLen;
 }
 
+#if 1
+static void timDoBinarySort(mergeState    *aState,
+                            void          *aLow,
+                            void          *aHigh,
+                            void          *aStart,
+                            const cmpFunc *aCmpCb)
+{
+    const size_t      sWidth = aState->mWidth;
+
+    register uint8_t *sLeft;
+    register uint8_t *sRight;
+    register uint8_t *sPtr;
+
+    assert(aLow <= aStart && aStart <= aHigh);
+
+    if (aLow == aStart) aStart = (uint8_t *)aStart + sWidth;
+
+    for (; aStart < aHigh; aStart = (uint8_t *)aStart + sWidth)
+    {
+        sLeft = (uint8_t *)aLow;
+        sRight = (uint8_t *)aStart;
+
+        assert(sLeft < sRight);
+
+        COPY(aState->mPivot, aStart, sWidth);
+
+        do 
+        {
+            /*
+             * Here, sPtr is pointer to the middle position
+             */
+            // sPtr = (sLeft + sRight) >> 1;
+            sPtr = sLeft + ((sRight - sLeft) / 2);
+            sPtr = (uint8_t *)((unsigned long)sPtr / sWidth * sWidth);
+
+            if ((*aCmpCb)(aState->mPivot, sPtr) < 0)
+            {
+                sRight = sPtr;
+            }
+            else
+            {
+                sLeft = sPtr + sWidth;
+            }
+        } while (sLeft < sRight);
+
+        /*
+         * Slide over to make room (using memmove is much slower under MSVC 5)
+         */
+        for (sPtr = aStart; sPtr > sLeft; sPtr -= sWidth)
+        {
+            /*
+             * Here, sPtr is a loop variable
+             */
+            COPY(sPtr, sPtr - sWidth, sWidth);
+        }
+
+        COPY(sLeft, aState->mPivot, sWidth);
+    }
+}
+
+#else
+
 static void timDoBinarySort(mergeState *aState,
                             int32_t        aIndexLow,
                             int32_t        aIndexHigh,
@@ -297,6 +359,8 @@ static void timDoBinarySort(mergeState *aState,
         COPY(sArray + sLeft * sWidth, aState->mPivot, sWidth);
     }
 }
+#endif
+
 
 static void mergeStatePushRun(mergeState *aState, int32_t aBase, uint32_t aRunLen)
 {
@@ -1241,6 +1305,7 @@ void timsort1(void    *aArray,
               size_t   aWidth,
               int    (*aCmpCb)(const void *, const void *))
 {
+    const size_t   sWidth = aWidth;
     const cmpFunc *sCmpCb = (const cmpFunc *)aCmpCb;
     mergeState     sState;
 
@@ -1264,16 +1329,16 @@ void timsort1(void    *aArray,
     {
     }
 
-    mergeStateInit(&sState, aArray, aWidth);
+    mergeStateInit(&sState, aArray, sWidth);
 
     sMinRunLen = timCalcMinRunLen(aElementCnt);
     sRemaining = aElementCnt;
 
     do
     {
-        sRunLen = timCountRunAndMakeAscending(sState.mWidth,
-                                              (uint8_t *)aArray + sIndexLow * aWidth,
-                                              (uint8_t *)aArray + sIndexHigh * aWidth,
+        sRunLen = timCountRunAndMakeAscending(sWidth,
+                                              (uint8_t *)aArray + sIndexLow * sWidth,
+                                              (uint8_t *)aArray + sIndexHigh * sWidth,
                                               sCmpCb);
 
         if (sRunLen < sMinRunLen)
@@ -1284,11 +1349,19 @@ void timsort1(void    *aArray,
              * From sIndexLow to sIndexLow + sRunLen - 1 is already sorted.
              * So we need to start the binary sort from sIndexLow + sRunLen
              */
+#if 1
+            timDoBinarySort(&sState,
+                            (uint8_t *)aArray + sIndexLow * sWidth,
+                            (uint8_t *)aArray + (sIndexLow + sForcedRunLen) * sWidth,
+                            (uint8_t *)aArray + (sIndexLow + sRunLen) * sWidth,
+                            sCmpCb);
+#else
             timDoBinarySort(&sState,
                             sIndexLow,
                             sIndexLow + sForcedRunLen,
                             sIndexLow + sRunLen,
                             sCmpCb);
+#endif
 
             sRunLen = sForcedRunLen;
         }
