@@ -8,8 +8,9 @@
 
 CC        = gcc
 LD        = gcc
-CFLAGS   += -Wall -g -O3 -fomit-frame-pointer -march=i686
+CFLAGS   += -Wall -g -O2 -fomit-frame-pointer
 GCOVOPT   = -fprofile-arcs -ftest-coverage
+GPROFOPT  = -pg
 
 GEN_DATA_EXEC_NAME = gendata
 GEN_DATA_SRCS      = gendata.c
@@ -48,6 +49,9 @@ clean:
 
 gcov:
 	make clean all LDFLAGS='$(GCOVOPT)' CFLAGS='$(GCOVOPT)'
+
+gprof:
+	make clean all LDFLAGS='$(GPROFOPT)' CFLAGS='$(GPROFOPT)'
 
 tags:
 	ctags -R .
